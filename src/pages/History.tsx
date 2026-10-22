@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { clearAttempts, listAttempts, listPsaResults, type AttemptRecord, type PsaResultRecord } from '../core/replay/db';
 import { buildTrend, weaponsIn, type TrendPoint } from '../core/replay/trend';
 import { drawTrend } from '../render/trendChart';
+import { fmt } from '../core/sens';
 
 function TrendCanvas({ pts, title, dashed }: { pts: TrendPoint[]; title: string; dashed?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -88,7 +89,7 @@ export default function History() {
               <td>{r.shotsFired}</td>
               <td>{r.score ? r.score.total : '—'}</td>
               <td>{r.score ? r.score.first10 : '—'}</td>
-              <td>{r.score ? `${r.score.meanErrDeg.toFixed(2)}°` : '—'}</td>
+              <td>{r.score ? `${fmt(r.score.meanErrDeg)}°` : "—"}</td>
               <td>{r.sens} / {r.dpi}</td>
               <td>{r.rawInput ? '是' : '否'}</td>
             </tr>
@@ -110,7 +111,7 @@ export default function History() {
               <td>{new Date(r.createdAt).toLocaleString('zh-CN')}</td>
               <td>{r.startSens}</td>
               <td><b>{r.finalSens}</b></td>
-              <td>{r.cm360.toFixed(1)}</td>
+              <td>{fmt(r.cm360, 1)}</td>
               <td>{r.dpi}</td>
               <td>{r.rounds.length}</td>
             </tr>

@@ -1,18 +1,18 @@
 // PSA 小任务的绘制：以准星为中心，世界网格与目标随视角移动（线性近似，小角度足够）
 import type { MicroTask } from '../core/sens/microTask';
 
-export function drawMicroTask(ctx: CanvasRenderingContext2D, W: number, H: number, task: MicroTask, pxPerDeg: number, label: string) {
+export function drawMicroTask(ctx: CanvasRenderingContext2D, W: number, H: number, task: MicroTask, pxPerDeg: number, label: string, stretchX = 1) {
   ctx.fillStyle = '#0b0f17';
   ctx.fillRect(0, 0, W, H);
   const cx = W / 2;
   const cy = H / 2;
-  const sx = (yaw: number) => cx + (yaw - task.yaw) * pxPerDeg;
+  const sx = (yaw: number) => cx + (yaw - task.yaw) * pxPerDeg * stretchX;
   const sy = (pitch: number) => cy - (pitch - task.pitch) * pxPerDeg;
   // 世界网格，每 5°
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 1;
   const step = 5;
-  const halfW = W / 2 / pxPerDeg;
+  const halfW = W / 2 / (pxPerDeg * stretchX);
   const halfH = H / 2 / pxPerDeg;
   for (let g = Math.floor((task.yaw - halfW) / step) * step; g <= task.yaw + halfW; g += step) {
     ctx.beginPath();
@@ -27,8 +27,9 @@ export function drawMicroTask(ctx: CanvasRenderingContext2D, W: number, H: numbe
     ctx.stroke();
   }
   if (task.phase !== 'done') {
+    const r = Math.max(4, task.opts.targetRadiusDeg * pxPerDeg);
     ctx.beginPath();
-    ctx.arc(sx(task.target.yaw), sy(task.target.pitch), Math.max(4, task.opts.targetRadiusDeg * pxPerDeg), 0, Math.PI * 2);
+    ctx.ellipse(sx(task.target.yaw), sy(task.target.pitch), r * stretchX, r, 0, 0, Math.PI * 2);
     ctx.fillStyle = task.phase === 'flick' ? '#f87171' : '#f59e0b';
     ctx.fill();
   }

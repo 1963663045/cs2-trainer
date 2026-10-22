@@ -43,7 +43,11 @@ class TrainerDB extends Dexie {
 export const db = new TrainerDB();
 
 export const saveAttempt = (a: AttemptRecord) => db.attempts.add(a);
-export const latestAttempt = () => db.attempts.orderBy('createdAt').last();
+export const latestAttempt = async (weaponId?: string) => {
+  if (!weaponId) return db.attempts.orderBy('createdAt').last();
+  const list = await db.attempts.where('weaponId').equals(weaponId).sortBy('createdAt');
+  return list.at(-1);
+};
 export const listAttempts = (limit = 200) => db.attempts.orderBy('createdAt').reverse().limit(limit).toArray();
 export const clearAttempts = () => db.attempts.clear();
 

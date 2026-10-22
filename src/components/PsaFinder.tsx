@@ -4,10 +4,12 @@ import { useSettings } from '../store/settings';
 import { usePointerInput } from './usePointerInput';
 import { candidates, initPsa, isDone, pickAB, psaResult, type PsaState } from '../core/sens/psa';
 import { MicroTask, type MicroTaskMetrics } from '../core/sens/microTask';
-import { cmPer360, horizontalFov, renderAspectOf } from '../core/sens';
+import { cmPer360, fmt, isPos, stretchFactor } from '../core/sens';
 import { savePsaResult } from '../core/replay/db';
 import { drawMicroTask } from '../render/psaCanvas';
-import { pxPerDegFor } from '../render/sprayCanvas';
+import { gameScalePxPerDeg } from '../render/sprayCanvas';
+import { RafLoop } from '../render/loop';
+import { E2E, e2eHook } from '../core/input/e2e';
 
 type Phase = 'idle' | 'A' | 'B' | 'choose' | 'done';
 
@@ -28,47 +30,76 @@ export default function PsaFinder() {
   const [metrics, setMetrics] = useState<{ A?: MicroTaskMetrics; B?: MicroTaskMetrics }>({});
   const [saved, setSaved] = useState(false);
   const taskRef = useRef<MicroTask | null>(null);
+  const loopRef = useRef<RafLoop | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const phaseRef = useRef<Phase>('idle');
   const psaRef = useRef<PsaState | null>(null);
-  phaseRef.current = phase;
-  psaRef.current = psa;
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+  useEffect(() => {
+    psaRef.current = psa;
+  }, [psa]);
 
   const beginRun = (p: 'A' | 'B') => {
     const s = psaRef.current!;
     const c = candidates(s);
     const sens = p === 'A' ? c.a : c.b;
     taskRef.current = new MicroTask(sens * useSettings.getState().mYaw);
+    phaseRef.current = p;
     setPhase(p);
+    loopRef.current?.kick();
   };
 
   useEffect(() => {
     const inp = input.current!;
     const canvas = canvasRef.current!;
     const offMove = inp.onMove((s) => taskRef.current?.move(s.dx, s.dy));
+    const restartRun = () => {
+      const ph = phaseRef.current;
+      if (ph === 'A' || ph === 'B') beginRun(ph);
+    };
+    const offLock = inp.onLock((e) => {
+      // 小任务进行中解除锁定：本组作废，重新锁定后从头开始（避免计时被暂停时间污染）
+      if (!e.locked) restartRun();
+      loop.kick();
+    });
+    const offErr = inp.onError((m) => setNotice(m));
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
+      const ph = phaseRef.current;
+      if (ph !== 'A' && ph !== 'B') return;
       if (!inp.locked) {
         inp.lock(canvas);
         return;
       }
       taskRef.current?.click(e.timeStamp || performance.now());
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === 'r' || e.key === 'R') restartRun();
+    };
     canvas.addEventListener('mousedown', onDown);
-    let raf = 0;
-    const loop = (now: number) => {
-      const ctx = canvas.getContext('2d')!;
+    window.addEventListener('keydown', onKey);
+    const loop = new RafLoop((now) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return false;
       const ph = phaseRef.current;
       const task = taskRef.current;
       const st = useSettings.getState();
-      const ppd = pxPerDegFor(canvas.width, horizontalFov(renderAspectOf(st.aspect)), 1);
+      const ppd = gameScalePxPerDeg(canvas);
+      const sx = stretchFactor(st.aspect, screen.width / screen.height);
       if ((ph === 'A' || ph === 'B') && task) {
         if (inp.locked) task.update(now);
-        drawMicroTask(ctx, canvas.width, canvas.height, task, ppd, `候选 ${ph}（第 ${(psaRef.current?.round ?? 0) + 1} 轮）`);
+        drawMicroTask(ctx, canvas.width, canvas.height, task, ppd, `候选 ${ph}（第 ${(psaRef.current?.round ?? 0) + 1} 轮）`, sx);
         if (!inp.locked) {
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = '#e5e7eb';
-          ctx.fillText('点击画布锁定鼠标后开始（计时从锁定后开始）', canvas.width / 2 - 150, canvas.height / 2);
+          ctx.font = '15px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`候选 ${ph}：点击画布锁定鼠标后开始（计时从锁定后开始）`, canvas.width / 2, canvas.height / 2);
+          ctx.textAlign = 'start';
         }
         if (task.done) {
           const m = task.metrics();
@@ -76,29 +107,42 @@ export default function PsaFinder() {
           setMetrics((old) => ({ ...old, [ph]: m }));
           if (ph === 'A') beginRun('B');
           else {
+            phaseRef.current = 'choose'; // 先改 ref，避免下面的解锁事件把它当成「中途退出」而重做
             setPhase('choose');
             inp.unlock();
           }
+          return true;
         }
-      } else {
-        ctx.fillStyle = '#0b0f17';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '14px sans-serif';
-        const msg = ph === 'choose' ? '请在下方选择手感更好的一组' : ph === 'done' ? '已完成' : '点击「开始」进行 PSA 盲测';
-        ctx.fillText(msg, 16, 24);
+        return inp.locked;
       }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
+      ctx.fillStyle = '#0b0f17';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '14px sans-serif';
+      const msg = ph === 'choose' ? '请在下方选择手感更好的一组' : ph === 'done' ? '已完成' : '点击「开始」进行 PSA 盲测';
+      ctx.fillText(msg, 16, 24);
+      return false;
+    });
+    loopRef.current = loop;
+    loop.kick();
+    if (E2E && e2eHook()) e2eHook()!.psaTask = () => taskRef.current;
     return () => {
-      cancelAnimationFrame(raf);
+      loop.dispose();
+      loopRef.current = null;
       offMove();
+      offLock();
+      offErr();
       canvas.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
     };
   }, [input]);
 
   const start = () => {
+    if (!isPos(settings.sens) || !isPos(settings.mYaw)) {
+      setNotice('当前灵敏度或 m_yaw 无效，请先在「设置」页填写。');
+      return;
+    }
+    setNotice(null);
     const s = initPsa(settings.sens, spread, rounds);
     psaRef.current = s;
     setPsa(s);
@@ -163,11 +207,13 @@ export default function PsaFinder() {
       ) : (
         <div className="muted">第 {(psa?.round ?? 0) + 1} / {psa?.maxRounds} 轮　当前阶段：{phase === 'choose' ? '选择' : `候选 ${phase}`}</div>
       )}
-      <canvas ref={canvasRef} width={960} height={420} className="stage" />
+      {notice && <div className="banner warn" role="alert">{notice}</div>}
+      <canvas ref={canvasRef} width={960} height={420} className="stage" data-testid="psa-canvas" role="img" aria-label="PSA 小任务画布" />
+      <p className="muted">画面比例按你的显示器高度换算（与游戏内同样的角度/像素关系）。快捷键：R 重做当前这一组，Esc 退出锁定（本组会作废重来）。</p>
       {phase === 'choose' && (
         <div className="row">
-          <button onClick={() => choose('A')}>A 手感更好</button>
-          <button onClick={() => choose('B')}>B 手感更好</button>
+          <button type="button" onClick={() => choose('A')}>A 手感更好</button>
+          <button type="button" onClick={() => choose('B')}>B 手感更好</button>
           {showMetrics && (
             <div className="muted">
               <div>A：{fmtM(metrics.A)}</div>
@@ -177,8 +223,8 @@ export default function PsaFinder() {
         </div>
       )}
       {phase === 'done' && fin != null && (
-        <div className="banner">
-          结果：灵敏度 <b>{fin}</b>（cm/360 = {cmPer360(settings.dpi, fin, settings.mYaw).toFixed(2)} cm，DPI {settings.dpi}）{saved && '，已保存到记录'}
+        <div className="banner info" data-testid="psa-result">
+          结果：灵敏度 <b data-testid="psa-final">{fin}</b>（cm/360 = {fmt(cmPer360(settings.dpi, fin, settings.mYaw))} cm，DPI {settings.dpi}）{saved && '，已保存到记录'}
           <button style={{ marginLeft: 12 }} onClick={() => settings.set({ sens: fin })}>
             应用为当前灵敏度
           </button>

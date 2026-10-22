@@ -17,14 +17,21 @@ export const GAMES: GameYaw[] = [
 
 export const CM_PER_INCH = 2.54;
 
-export const edpi = (dpi: number, sens: number) => dpi * sens;
+/** 正的有限数 */
+export const isPos = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
+
+// 以下函数遇到非法输入（0、负数、NaN、Infinity）一律返回 NaN，由界面显示为「—」，不会得到 Infinity 之类的误导值。
+export const edpi = (dpi: number, sens: number) => (isPos(dpi) && isPos(sens) ? dpi * sens : NaN);
 
 /** 转一圈需要多少个鼠标计数 */
-export const countsPer360 = (sens: number, yaw: number) => 360 / (sens * yaw);
+export const countsPer360 = (sens: number, yaw: number) => (isPos(sens) && isPos(yaw) ? 360 / (sens * yaw) : NaN);
 
 /** cm/360 = 360 / (sens*yaw) / DPI * 2.54 */
 export const cmPer360 = (dpi: number, sens: number, yaw: number) =>
-  (countsPer360(sens, yaw) / dpi) * CM_PER_INCH;
+  isPos(dpi) ? (countsPer360(sens, yaw) / dpi) * CM_PER_INCH : NaN;
+
+/** 数值格式化：非有限数显示为「—」 */
+export const fmt = (v: number, digits = 2) => (Number.isFinite(v) ? v.toFixed(digits) : '—');
 
 /** 保持 cm/360 不变的跨游戏换算（同 DPI 或不同 DPI 都可） */
 export function convertSens(
@@ -34,15 +41,17 @@ export function convertSens(
   fromDpi = 1,
   toDpi = fromDpi
 ): number {
+  if (![sens, fromYaw, toYaw, fromDpi, toDpi].every(isPos)) return NaN;
   return (sens * fromYaw * fromDpi) / (toYaw * toDpi);
 }
 
 /** 视角角度 -> 鼠标移动厘米 */
 export const degToCm = (deg: number, dpi: number, sens: number, yaw: number) =>
-  (deg / (sens * yaw) / dpi) * CM_PER_INCH;
+  Number.isFinite(deg) && isPos(dpi) && isPos(sens) && isPos(yaw) ? (deg / (sens * yaw) / dpi) * CM_PER_INCH : NaN;
 
 /** 鼠标计数 -> 视角角度 */
-export const countsToDeg = (counts: number, sens: number, yaw: number) => counts * sens * yaw;
+export const countsToDeg = (counts: number, sens: number, yaw: number) =>
+  Number.isFinite(counts) && isPos(sens) && isPos(yaw) ? counts * sens * yaw : NaN;
 
 export type AspectMode = '16:9' | '4:3-stretched' | '4:3-blackbars' | '16:10';
 
@@ -71,4 +80,31 @@ export function renderAspectOf(mode: AspectMode): number {
 export function verticalFov(baseFov4x3 = 90): number {
   const half = (baseFov4x3 / 2) * (Math.PI / 180);
   return (2 * Math.atan(Math.tan(half) * (3 / 4)) * 180) / Math.PI;
+}
+
+/** 屏幕上的横向拉伸倍数：只有 4:3 拉伸时 > 1（4:3 画面被拉满显示器宽度） */
+export function stretchFactor(mode: AspectMode, screenAspect: number): number {
+  if (mode !== '4:3-stretched' || !isPos(screenAspect)) return 1;
+  return Math.max(1, screenAspect / (4 / 3));
+}
+
+// ---------- 设置校验 ----------
+// 这些范围只是输入合理性检查（防止 0、负数、误输入），不是游戏内的限制。
+export const LIMITS = {
+  dpi: [1, 100000],
+  sens: [0.0001, 1000],
+  mYaw: [0.0001, 1],
+  resW: [320, 16384],
+  resH: [200, 16384],
+  toleranceDeg: [0.1, 10]
+} as const;
+
+export type NumericKey = keyof typeof LIMITS;
+
+/** 返回错误信息（中文）；合法时返回 null */
+export function validateNumber(key: NumericKey, v: unknown): string | null {
+  const [lo, hi] = LIMITS[key];
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '请输入数字';
+  if (v < lo || v > hi) return `范围 ${lo} – ${hi}`;
+  return null;
 }

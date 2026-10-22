@@ -30,10 +30,11 @@ export function recoveryTimeFor(rec: RecoveryParams, index: number, crouch = fal
  * 序号在恢复时间内线性衰减到 0。参数缺失时视为完全恢复。
  */
 export function decayedIndex(prevIndex: number, elapsedS: number, rec: RecoveryParams, crouch = false): number {
-  if (prevIndex <= 0) return 0;
+  if (!(prevIndex > 0)) return 0;
   const T = recoveryTimeFor(rec, prevIndex, crouch);
-  if (!T || T <= 0) return 0;
-  return Math.max(0, Math.floor(prevIndex * (1 - elapsedS / T)));
+  if (!T || !(T > 0) || !Number.isFinite(elapsedS)) return 0;
+  const e = Math.max(0, elapsedS); // 时钟异常（负值）时按刚停火处理，不会超过上次序号
+  return Math.max(0, Math.floor(prevIndex * (1 - e / T)));
 }
 
 import type { PatternPoint } from '../weapons';

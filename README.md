@@ -1,4 +1,4 @@
-# CS2 灵敏度 & 压枪练习（v0.2）
+# CS2 灵敏度 & 压枪练习（v0.3）
 
 纯前端网页：灵敏度计算 / 360° 校准 / PSA 找灵敏度 / 手动压枪练习 / 弹道学习 / 训练记录与趋势图。
 技术栈：**React 18 + Vite + TypeScript**，HashRouter（适配 GitHub Pages），Zustand（设置持久化到 localStorage），Dexie（IndexedDB 训练记录），Vitest（单元测试）。
@@ -19,10 +19,20 @@ npm run dev
 ## 运行测试 / 构建
 
 ```bash
-npm test          # Vitest：灵敏度换算、PSA 区间、小任务、采样插值、射击计时、恢复近似、评分、趋势数据
+npm test          # Vitest 单元测试：灵敏度换算与非法输入、视野/投影、输入层锁定生命周期与尖峰过滤、采样、评分、PSA、恢复近似、趋势数据、数据校验
+npm run lint      # ESLint
+npm run typecheck # tsc --noEmit
+npm run check     # 以上三项
 npm run build     # 类型检查 + 生成 dist/
 npm run preview   # 本地预览 dist
+npm run test:e2e  # 构建测试版（dist-e2e）并运行 Playwright 端到端测试
 ```
+
+E2E 测试需要 Chromium：`npx playwright install chromium`，或用已安装的 Chrome：`CHROME_PATH=/usr/bin/google-chrome npm run test:e2e`。
+
+**测试钩子说明**：浏览器自动化无法真正进入 Pointer Lock，所以 `npm run build:e2e` 会以 `VITE_E2E=1` 构建一个测试版：用「假锁定」代替真实锁定，并允许测试脚本向**本页面自己的输入层**注入模拟移动（走与真实事件相同的尖峰过滤流程），用来验证开火计时、评分、记录保存与 PSA 流程。生产构建中 `VITE_E2E` 为常量 false，这些代码会被移除，线上版本没有任何注入接口。
+
+CI（`.github/workflows/deploy.yml`）：`check`（lint + typecheck + 单元测试）与 `e2e`（Playwright）都通过后才 `build` 并部署到 Pages；PR 只跑检查不部署。
 
 ## 部署到 GitHub Pages
 
@@ -53,7 +63,8 @@ src/core/weapons   武器数据类型与加载
 src/core/spray     射击计时（连续时间，不按 tick 取整）、路径采样插值、单次尝试状态机、停火恢复近似（recovery.ts）
 src/core/scoring   逐发误差（度 / 厘米）、总分、前 10 发、最差片段
 src/core/replay    Dexie 训练记录 + PSA 结果、趋势图数据整理（trend.ts）
-src/render         Canvas 绘制（在 React 渲染循环外，用 ref + requestAnimationFrame）；趋势图为自绘 Canvas，无第三方图表库
+src/render         Canvas 绘制（在 React 渲染循环外，用 ref + 按需 requestAnimationFrame：只在锁定 / 开火 / 播放时持续绘制）；趋势图为自绘 Canvas，无第三方图表库
+e2e/               Playwright 端到端测试（使用测试构建）
 src/pages          设置 / 灵敏度 / 压枪训练 / 弹道学习 / 记录
 src/store          Zustand 设置（持久化）与运行时状态
 public/data/weapons 武器数据 JSON
@@ -122,10 +133,43 @@ public/data/weapons 武器数据 JSON
 3. 在 `gameBuild` 中写明测量时的游戏版本，并核对整体尺寸（`validationTargets` 字段，数据来自 csstats 2023-08-22 页面：AK 高 11.06°/宽 7.14°，M4A4 9.06°/6.29°，M4A1-S 5.93°/4.62°，Galil 7.31°/7.06°，FAMAS 6.96°/4.89°；页面较旧，之后的补丁可能有改动）。实测步骤也写在每个武器 JSON 的 `measurementProcedure` 里。
 4. 新武器：复制一份 JSON，加入 `public/data/weapons/index.json`。
 
+## 验收清单（真实鼠标手动检查）
+
+自动化测试覆盖了计算、流程与数据保存，但下面这些只能用真鼠标、真浏览器确认。建议用最新版 Chrome / Edge，Windows 上测一遍。
+
+**输入层**
+- [ ] 点击训练画布后右上角显示「原始输入（已绕过系统加速）」；Firefox 下显示非原始输入警告。
+- [ ] Windows 开启「提高指针精确度」后，Chrome 中同样的物理移动得到的角度不变（raw 生效）。
+- [ ] 按 Esc 退出锁定后立刻再点画布：出现「需要等约 1 秒」的提示而不是报错；稍后再点能正常锁定。
+- [ ] 压枪途中按 Esc / Alt+Tab / 切换标签页：提示「本次尝试已中断（不保存）」，记录页没有这条，回来后不会一直处于开火状态。
+- [ ] 按住左键开火时把鼠标快速甩动，不会出现准星瞬移（尖峰过滤），结果里「已过滤异常位移事件」数量正常为 0 或个位数。
+- [ ] 1000 Hz / 4000 Hz 以上回报率鼠标：轨迹平滑，无明显台阶。
+
+**灵敏度**
+- [ ] 设置页填入自己的 DPI / 灵敏度，刷新后仍在；输入 0、负数、空值时显示错误且不保存。
+- [ ] 360° 校准：在鼠标垫上移动「理论 cm/360」的距离，累计转角约 360°（±2%），与 CS2 内转身一致；R 归零可用。
+- [ ] PSA：7 轮流程能走完；中途 Esc 后该组会重做；结果可「应用为当前灵敏度」，记录页出现结果。PSA 手感（角速度）与游戏内相近。
+
+**压枪训练 / 弹道学习**
+- [ ] 示意弹道：按住开火 30 发约 3 秒（0.1 s 间隔）自动结束；松开提前结束；R 重置。
+- [ ] 认真压一梭子得分明显高于不压；容差圈、补偿线开关生效；4:3 拉伸时圈变成横向椭圆。
+- [ ] 打开「停火恢复（近似）」后，快速点射时提示从第 N 发弹道开始。
+- [ ] 选 AK-47 等真实武器：显示「仅记录模式」，不评分，记录页计入「仅记录」条数。
+- [ ] 弹道学习：动画播放、暂停（空格）、从头播放（R）；切走标签页再回来不跳帧。
+
+**界面**
+- [ ] 首次打开（无痕窗口）各页顶部有填写设置的提示，填写后消失。
+- [ ] 窄窗口（< 640 px）与 125% / 150% 系统缩放下布局不错乱，画布等比缩小。
+- [ ] 手机打开显示「需要鼠标」提示。
+- [ ] 地址栏输入不存在的路径（如 `/cs2-trainer/abc` 或 `#/abc`）能回到应用 / 显示「页面不存在」。
+
 ## 已知限制
 
 - 浏览器无法完全复刻 CS2 的视野、帧延迟与输入链路；Firefox / Safari 不支持 `unadjustedMovement`，会显示警告。
-- 训练画布按「画布宽度 = 屏幕宽度」近似换算像素/度，并放大 3 倍便于观察；评分只依赖角度，不受显示缩放影响。
+- 压枪训练 / 弹道学习画布：以画布高度对应 CS2 垂直视野（73.74°，Hor+ 下所有比例相同）换算每度像素，再放大 ×3 便于观察；4:3 拉伸时横向乘以「显示器宽高比 ÷ 4/3」。这是中心附近的线性近似（±15° 内误差很小）；评分只依赖角度，不受显示缩放影响。
+- PSA 画布按**显示器高度**换算每度像素，让角度/像素关系接近全屏游戏，但画布只是屏幕的一部分。
+- 单个移动事件超过 1000 counts 会当作异常尖峰丢弃（Chrome 已知会偶发巨大 movementX/Y）；极高 DPI + 极快甩动理论上可能误伤，丢弃数量会显示在训练结果里。
+- 浏览器无法得知 unadjustedMovement 是否真的生效，只能根据 `requestPointerLock` 是否接受该选项判断；不返回 Promise 的旧浏览器一律按「非原始输入」提示。
 - 不模拟随机散布与镜头抖动；停火恢复只有近似模型（默认关闭）；FAMAS 连发模式不模拟。
 - PSA 小任务用线性角度投影（小角度下足够准确），视野、帧率与游戏不同。
 
