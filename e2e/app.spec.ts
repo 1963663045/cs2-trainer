@@ -333,15 +333,35 @@ test('弹道学习：加载后从第 1 发开始播放不卡住；最近记录�
   const later = Number(await c.getAttribute('data-shot'));
   expect(later).toBeGreaterThanOrEqual(first + 8);
   await expect(page.getByText('——暂无记录')).toHaveCount(0);
-  // 等到播放后段，统计亮绿像素（#4ade80 ≈ 74,222,128）
-  await page.waitForTimeout(1500);
-  const green = await c.evaluate((el: HTMLCanvasElement) => {
+  await expect(c).toHaveAttribute('data-overlay', 'moving');
+  // 回到开头并暂停：此时亮绿“已播放部分”几乎为 0，画面上的绿色主要来自淡绿完整轨迹
+  await page.getByRole('button', { name: '从头播放（R）' }).click();
+  await page.keyboard.press(' ');
+  await expect(page.getByRole('button', { name: '播放（空格）' })).toBeVisible();
+  await page.waitForTimeout(100);
+  const px = await c.evaluate((el: HTMLCanvasElement) => {
     const d = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data;
-    let n = 0;
-    for (let i = 0; i < d.length; i += 4) if (d[i] < 120 && d[i + 1] > 170 && d[i + 2] < 170 && d[i + 2] > 80) n++;
-    return n;
+    let green = 0;
+    let red = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
+      if (g > 100 && g > r + 50 && g > b + 30) green++; // 色相明确为绿（排除灰、蓝）
+      if (r > 130 && r > g + 50 && r > b + 50) red++; // 色相明确为红
+    }
+    return { green, red, shot: Number(el.dataset.shot) };
   });
-  expect(green).toBeGreaterThan(200);
+  expect(px.shot).toBeLessThanOrEqual(2);
+  expect(px.green).toBeGreaterThan(400);
+  expect(px.red).toBeGreaterThan(400);
+});
+
+test('弹道学习：最近记录几乎没动鼠标时标注“几乎没有移动”', async ({ page }) => {
+  await page.goto('./#/spray');
+  await lockTrainer(page);
+  await spray(page, 0); // 完全不压枪：视角不动
+  await page.evaluate(() => window.__cs2e2e!.unlock());
+  await page.getByRole('navigation').getByRole('link', { name: '弹道学习' }).click();
+  await expect(page.getByTestId('learn-canvas')).toHaveAttribute('data-overlay', 'still');
 });
 
 test('PSA：锁定那一下点击不计，必须处理满 6 个目标才进入跟枪', async ({ page }) => {
