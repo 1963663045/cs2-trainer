@@ -5,7 +5,7 @@ const executablePath = process.env.CHROME_PATH || undefined;
 
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 180_000,
+  timeout: 150_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
@@ -20,6 +20,8 @@ export default defineConfig({
   webServer: {
     command: 'npx vite preview --outDir dist-e2e --port 4179 --strictPort --host 127.0.0.1',
     url: 'http://127.0.0.1:4179/',
+    // 测试构建的 base 为 '/'；CI 中有 GITHUB_REPOSITORY，必须显式覆盖，否则 preview 会挂在 /<仓库名>/ 下
+    env: { VITE_BASE: '/' },
     reuseExistingServer: !process.env.CI,
     timeout: 60_000
   }
