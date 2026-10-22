@@ -32,7 +32,9 @@ export default function History() {
   return (
     <div className="page">
       <h2>训练记录</h2>
-      <p className="muted">记录保存在本机 IndexedDB 中，清除浏览器数据会丢失。</p>
+      <p className="muted">
+        记录保存在本机 IndexedDB 中，清除浏览器数据会丢失。时间按浏览器当前时区显示（<span data-testid="tz">{Intl.DateTimeFormat().resolvedOptions().timeZone}</span>）。
+      </p>
       <div className="row">
         <label>
           武器筛选{' '}

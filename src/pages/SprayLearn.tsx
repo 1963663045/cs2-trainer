@@ -5,6 +5,7 @@ import { WeaponNotice, WeaponSelect } from '../components/WeaponSelect';
 import { latestAttempt, type AttemptRecord } from '../core/replay/db';
 import { degToCm, fmt } from '../core/sens';
 import { sampleAt } from '../core/spray/sampler';
+import { MIN_SHOTS } from '../core/scoring';
 import type { WeaponData } from '../core/weapons';
 import * as R from '../render/sprayCanvas';
 import { RafLoop } from '../render/loop';
@@ -25,10 +26,11 @@ export default function SprayLearn() {
   useEffect(() => {
     weaponRef.current = weapon;
     playRef.current.elapsed = 0;
+    playRef.current.lastNow = -1;
     attemptRef.current = null;
     let alive = true;
     if (weapon)
-      latestAttempt(weapon.id).then((a) => {
+      latestAttempt(weapon.id, MIN_SHOTS).then((a) => {
         if (alive && a) {
           attemptRef.current = a;
           setAttemptFor(a.weaponId);
@@ -59,7 +61,9 @@ export default function SprayLearn() {
       const w = weaponRef.current;
       const st = useSettings.getState();
       const p = playRef.current;
-      if (p.playing && p.lastNow >= 0) p.elapsed += Math.min(100, now - p.lastNow) * p.speed;
+      // 循环刚启动 / 从后台恢复 / 数据刚加载时 lastNow 可能很旧：间隔过大视为暂停过，不推进（避免一开始就跳到第 2 发）
+      const dt = p.lastNow >= 0 ? now - p.lastNow : 0;
+      if (p.playing && dt > 0 && dt < 250) p.elapsed += dt * p.speed;
       p.lastNow = now;
       const v = R.viewFor(canvas, st.aspect, 3, 0.5);
       R.clear(ctx, canvas.width, canvas.height);
@@ -76,12 +80,15 @@ export default function SprayLearn() {
         if (att && att.path.length) {
           const tt = Math.min(t, att.path.at(-1)?.t ?? 0);
           const cut = att.path.filter((q) => q.t <= tt);
-          R.drawPolyline(ctx, v, cut, '#4ade80', 2);
+          cut.push(sampleAt(att.path, tt) as (typeof cut)[number]);
+          R.drawPolyline(ctx, v, att.path, 'rgba(74,222,128,0.35)', 2); // 完整轨迹（淡绿）
+          R.drawPolyline(ctx, v, cut, '#4ade80', 3); // 已播放部分（亮绿）
           const cur = sampleAt(att.path, tt);
           const c = R.toPx(v, cur.x, cur.y);
           R.drawCrosshair(ctx, c.x, c.y);
         }
         R.drawCrosshair(ctx, v.ox, v.oy, 'rgba(255,255,255,0.4)');
+        if (canvas.dataset.shot !== String(k)) canvas.dataset.shot = String(k); // 供测试读取当前发数
         const last = w.perBullet[k - 1];
         ctx.fillStyle = '#e5e7eb';
         ctx.font = '13px sans-serif';
@@ -151,8 +158,10 @@ export default function SprayLearn() {
       </div>
       <WeaponNotice weapon={weapon} />
       <p className="muted">
-        红点 = 弹道（子弹相对瞄准点的偏移，按射速逐发出现）；蓝线 = 反向补偿路径（视角需要移动的方向，下拉为向下）；绿线 = 你最近一次在该武器上的记录
-        {hasAttempt ? '' : '（暂无记录）'}。画面放大 ×3。
+        <span style={{ color: '#f87171' }}>红点</span> = 弹道（子弹相对瞄准点的偏移，按射速逐发出现，淡红线为完整弹道）；
+        <span style={{ color: '#60a5fa' }}>蓝线</span> = 反向补偿路径（视角需要移动的方向，下拉为向下）；
+        <span style={{ color: '#4ade80' }}>绿线</span> = 你最近一次在该武器上的有效记录（至少 {MIN_SHOTS} 发；淡绿为完整轨迹，亮绿随播放推进）
+        {hasAttempt ? '' : '——暂无记录'}。画面放大 ×3。
       </p>
       <canvas ref={canvasRef} width={960} height={600} className="stage" role="img" aria-label="弹道与补偿路径动画" data-testid="learn-canvas" />
     </div>

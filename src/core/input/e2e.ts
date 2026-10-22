@@ -6,6 +6,8 @@ export const E2E = import.meta.env.VITE_E2E === '1';
 
 export interface E2EHook {
   fakeLock: boolean;
+  /** 假锁定时模拟的输入模式：'raw'（默认）或 'os'（模拟不支持 unadjustedMovement 的平台） */
+  fakeMode?: 'raw' | 'os';
   active: PointerInput | null;
   move: (dx: number, dy: number, buttons?: number) => void;
   unlock: () => void;

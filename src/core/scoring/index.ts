@@ -10,7 +10,12 @@ export interface ShotError {
   errDeg: number;
   errCm: number;
   score: number; // 0..100
+  /** 是否计入总分 / 前 10 发 / 平均误差 / 最差片段。第 1 发恒为 false（见 scoreSpray 说明） */
+  counted: boolean;
 }
+
+/** 少于该发数的连射不评分、不保存（单击或极短点射没有压枪意义，且会被第 1 发虚高） */
+export const MIN_SHOTS = 5;
 
 export interface ScoreResult {
   shots: ShotError[];
@@ -29,6 +34,11 @@ export interface ScoreOptions {
   segmentSize?: number; // 最差片段窗口大小
 }
 
+/**
+ * 第 1 发在按下瞬间发射，此时视角尚未移动、弹道偏移也为 0，误差恒为 0（必得满分），
+ * 与压枪水平无关，因此不计入任何汇总指标，只在逐发表中显示。
+ * 「前 10 发」= 第 2–10 发。
+ */
 export function scoreSpray(
   pattern: PatternPoint[],
   viewAtShots: { x: number; y: number }[],
@@ -48,23 +58,25 @@ export function scoreSpray(
       dyDeg: dy,
       errDeg: err,
       errCm: degToCm(err, opts.dpi, opts.sens, opts.yaw),
-      score: Math.max(0, 100 * (1 - err / tol))
+      score: Math.max(0, 100 * (1 - err / tol)),
+      counted: i > 0
     });
   }
+  const counted = shots.filter((s) => s.counted);
   const mean = (a: number[]) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
   let worst: ScoreResult['worstSegment'] = null;
-  if (n >= seg) {
-    for (let i = 0; i + seg <= n; i++) {
-      const m = mean(shots.slice(i, i + seg).map((s) => s.errDeg));
-      if (!worst || m > worst.meanErrDeg) worst = { from: shots[i].shot, to: shots[i + seg - 1].shot, meanErrDeg: m };
+  if (counted.length >= seg) {
+    for (let i = 0; i + seg <= counted.length; i++) {
+      const m = mean(counted.slice(i, i + seg).map((s) => s.errDeg));
+      if (!worst || m > worst.meanErrDeg) worst = { from: counted[i].shot, to: counted[i + seg - 1].shot, meanErrDeg: m };
     }
   }
   return {
     shots,
-    total: Math.round(mean(shots.map((s) => s.score))),
-    first10: Math.round(mean(shots.slice(0, 10).map((s) => s.score))),
-    meanErrDeg: mean(shots.map((s) => s.errDeg)),
-    meanErrCm: mean(shots.map((s) => s.errCm)),
+    total: Math.round(mean(counted.map((s) => s.score))),
+    first10: Math.round(mean(counted.slice(0, 9).map((s) => s.score))),
+    meanErrDeg: mean(counted.map((s) => s.errDeg)),
+    meanErrCm: mean(counted.map((s) => s.errCm)),
     worstSegment: worst
   };
 }

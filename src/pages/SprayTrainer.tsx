@@ -6,7 +6,7 @@ import { WeaponNotice, WeaponSelect } from '../components/WeaponSelect';
 import { SpraySession } from '../core/spray/session';
 import { sampleShots, shotTimes } from '../core/spray/sampler';
 import { decayedIndex, patternSlice } from '../core/spray/recovery';
-import { scoreSpray, type ScoreResult } from '../core/scoring';
+import { MIN_SHOTS, scoreSpray, type ScoreResult } from '../core/scoring';
 import { saveAttempt } from '../core/replay/db';
 import { fmt } from '../core/sens';
 import type { WeaponData } from '../core/weapons';
@@ -34,6 +34,7 @@ export default function SprayTrainer() {
     sessionRef.current = weapon ? new SpraySession(weapon.cycleTime, weapon.clipSize) : null;
     lastStopRef.current = null;
     setResult(null);
+    setInfo(IDLE_HINT);
     loopRef.current?.kick();
   }, [weapon]);
 
@@ -69,6 +70,13 @@ export default function SprayTrainer() {
       const dpc = st.sens * st.mYaw;
       const r = ses.result(dpc);
       lastStopRef.current = { t, index: ses.startIndex + r.shots };
+      if (r.shots < MIN_SHOTS) {
+        // 单击 / 极短点射：不评分、不保存
+        setResult(null);
+        setInfo(`射击太短（${r.shots} 发，至少 ${MIN_SHOTS} 发），未计分、未保存。按住左键连射。`);
+        loop.kick();
+        return;
+      }
       const pat = patternSlice(w.perBullet, ses.startIndex, r.shots);
       let score: ScoreResult | null = null;
       if (pat.length) {
@@ -236,6 +244,7 @@ export default function SprayTrainer() {
       <details className="help">
         <summary>怎么练？</summary>
         <ol>
+          <li>至少连射 {MIN_SHOTS} 发才会评分并保存；单击不计。</li>
           <li>先在「设置」页填好 DPI 与 CS2 灵敏度（与游戏一致），这样角度换算才准确。</li>
           <li>点击画布锁定鼠标，按住左键开火，像在游戏里一样往反方向拉鼠标；松开或打空弹匣结束。</li>
           <li>绿色 = 你的视角轨迹；蓝色虚线 = 理想补偿路径；黄圈 = 容差圈（设置值）；红点 = 子弹落点，越靠近白色准星越好。</li>
@@ -258,7 +267,8 @@ export default function SprayTrainer() {
       {result && (
         <div className="card" data-testid="trainer-result">
           <div>
-            总分 <b data-testid="score-total">{result.total}</b>　前 10 发 <b data-testid="score-first10">{result.first10}</b>　平均误差 {fmt(result.meanErrDeg)}° / {fmt(result.meanErrCm)} cm
+            总分 <b data-testid="score-total">{result.total}</b>　前 10 发 <b data-testid="score-first10">{result.first10}</b>
+            <small className="muted">（第 1 发恒在准星处，不计分；前 10 发 = 第 2–10 发）</small>　平均误差 {fmt(result.meanErrDeg)}° / {fmt(result.meanErrCm)} cm
             {result.worstSegment && `　最差片段：第 ${result.worstSegment.from}–${result.worstSegment.to} 发（平均 ${fmt(result.worstSegment.meanErrDeg)}°）`}
           </div>
           <details>
@@ -270,7 +280,7 @@ export default function SprayTrainer() {
               <tbody>
                 {result.shots.map((s) => (
                   <tr key={s.shot}>
-                    <td>{s.shot}</td><td>{fmt(s.dxDeg)}</td><td>{fmt(s.dyDeg)}</td><td>{fmt(s.errDeg)}</td><td>{fmt(s.errCm)}</td><td>{fmt(s.score, 0)}</td>
+                    <td>{s.shot}</td><td>{fmt(s.dxDeg)}</td><td>{fmt(s.dyDeg)}</td><td>{fmt(s.errDeg)}</td><td>{fmt(s.errCm)}</td><td>{s.counted ? fmt(s.score, 0) : '不计分'}</td>
                   </tr>
                 ))}
               </tbody>

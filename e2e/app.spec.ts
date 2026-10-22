@@ -229,6 +229,7 @@ test('PSA 找灵敏度：5 轮盲测完成并保存结果', async ({ page }) => 
         const cv = document.querySelector('[data-testid=psa-canvas]')!;
         const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
         const task = () => hook.psaTask!() as Task | null;
+        while (task() && task()!.phase === 'ready') await sleep(20);
         let guard = 0;
         while (task() && task()!.phase === 'flick' && guard++ < 50) {
           const t = task()!;
@@ -259,4 +260,124 @@ test('PSA 找灵敏度：5 轮盲测完成并保存结果', async ({ page }) => 
   expect(fin).toBeLessThan(1.5);
   await page.getByRole('navigation').getByRole('link', { name: '记录' }).click();
   await expect(page.getByRole('cell', { name: String(fin), exact: true })).toBeVisible();
+});
+
+test('单击 / 少于 5 发的点射不计分、不保存；换武器清除上一次结果', async ({ page }) => {
+  await page.goto('./#/spray');
+  await lockTrainer(page);
+  const canvas = page.getByTestId('trainer-canvas');
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + 200, box.y + 200);
+  // 单击
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.getByTestId('trainer-info')).toContainText('射击太短（1 发');
+  await expect(page.getByTestId('trainer-result')).toHaveCount(0);
+  // 4 发（0.1 s 间隔，按住约 0.35 s）
+  await page.mouse.down();
+  await page.waitForTimeout(350);
+  await page.mouse.up();
+  await expect(page.getByTestId('trainer-info')).toContainText(/射击太短（[34] 发/);
+  // 正常一梭子 → 有结果；第 1 发标为不计分
+  await spray(page, 1);
+  await page.getByText('逐发误差').click();
+  await expect(page.getByTestId('trainer-result').locator('tbody tr').first().locator('td').last()).toHaveText('不计分');
+  // 换武器：结果与提示都被清掉
+  await page.getByLabel('武器：').selectOption('ak47');
+  await expect(page.locator('.banner.info', { hasText: '待实测' })).toBeVisible();
+  await expect(page.getByTestId('trainer-result')).toHaveCount(0);
+  await expect(page.getByTestId('trainer-info')).not.toContainText('总分');
+  await page.getByRole('navigation').getByRole('link', { name: '记录' }).click();
+  await expect(page.locator('tbody tr', { hasText: '示意弹道' })).toHaveCount(1);
+  await expect(page.getByTestId('tz')).toHaveText(/.+\/.+|UTC/);
+});
+
+test('锁定 / 解锁时布局不跳动（非原始输入提示为浮层）', async ({ page }) => {
+  await page.goto('./#/spray');
+  await page.evaluate(() => (window.__cs2e2e!.fakeMode = 'os'));
+  const canvas = page.getByTestId('trainer-canvas');
+  await expect(page.locator('.banner.demo')).toBeVisible(); // 等武器数据加载完、布局稳定
+  // 文档坐标（不受点击时自动滚动影响）
+  const pos = (sel: string) =>
+    page.evaluate((q) => {
+      const r = document.querySelector(q)!.getBoundingClientRect();
+      return { y: r.y + scrollY, x: r.x + scrollX, w: r.width, h: document.documentElement.scrollHeight };
+    }, sel);
+  const before = await pos('[data-testid=trainer-canvas]');
+  const badgeBefore = await pos('[data-testid=raw-badge]');
+  await canvas.click();
+  await expect(canvas).toHaveAttribute('data-locked', '1');
+  await expect(page.getByTestId('raw-warning')).toBeVisible();
+  await expect(page.getByTestId('raw-badge')).toHaveText('非原始输入');
+  const during = await pos('[data-testid=trainer-canvas]');
+  const badgeDuring = await pos('[data-testid=raw-badge]');
+  await page.evaluate(() => window.__cs2e2e!.unlock());
+  await expect(page.getByTestId('raw-warning')).toHaveCount(0);
+  const after = await pos('[data-testid=trainer-canvas]');
+  expect(during).toEqual(before);
+  expect(after).toEqual(before);
+  expect(badgeDuring).toEqual(badgeBefore);
+});
+
+test('弹道学习：加载后从第 1 发开始播放不卡住；最近记录以绿色清晰叠加', async ({ page }) => {
+  await page.goto('./#/spray');
+  await lockTrainer(page);
+  await spray(page, 0.6);
+  await page.evaluate(() => window.__cs2e2e!.unlock());
+  await page.getByRole('navigation').getByRole('link', { name: '弹道学习' }).click();
+  const c = page.getByTestId('learn-canvas');
+  await expect(c).toHaveAttribute('data-shot', /\d+/);
+  const first = Number(await c.getAttribute('data-shot'));
+  expect(first).toBeLessThanOrEqual(2);
+  await page.waitForTimeout(1200);
+  const later = Number(await c.getAttribute('data-shot'));
+  expect(later).toBeGreaterThanOrEqual(first + 8);
+  await expect(page.getByText('——暂无记录')).toHaveCount(0);
+  // 等到播放后段，统计亮绿像素（#4ade80 ≈ 74,222,128）
+  await page.waitForTimeout(1500);
+  const green = await c.evaluate((el: HTMLCanvasElement) => {
+    const d = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 120 && d[i + 1] > 170 && d[i + 2] < 170 && d[i + 2] > 80) n++;
+    return n;
+  });
+  expect(green).toBeGreaterThan(200);
+});
+
+test('PSA：锁定那一下点击不计，必须处理满 6 个目标才进入跟枪', async ({ page }) => {
+  await page.goto('./#/sens');
+  await page.getByRole('button', { name: '开始' }).click();
+  const canvas = page.getByTestId('psa-canvas');
+  await canvas.click(); // 锁定点击
+  const st = () =>
+    page.evaluate(() => {
+      const t = window.__cs2e2e!.psaTask!() as { phase: string; results: string[]; missClicks: number } | null;
+      return t ? { phase: t.phase, n: t.results.length, miss: t.missClicks } : null;
+    });
+  expect(await st()).toMatchObject({ n: 0, miss: 0 });
+  await expect.poll(async () => (await st())?.phase).toBe('flick');
+  // 两次空枪：仍是第 1 个目标
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.click(box.x + 10, box.y + 10);
+  await page.mouse.click(box.x + 10, box.y + 10);
+  expect(await st()).toMatchObject({ phase: 'flick', n: 0, miss: 2 });
+  // 依次命中 6 个目标，第 5 个之后仍在甩枪阶段
+  for (let i = 0; i < 6; i++) {
+    expect((await st())!.phase).toBe('flick');
+    await page.evaluate(() => {
+      const t = window.__cs2e2e!.psaTask!() as { yaw: number; pitch: number; target: { yaw: number; pitch: number }; degPerCount: number };
+      let dx = (t.target.yaw - t.yaw) / t.degPerCount;
+      let dy = (t.pitch - t.target.pitch) / t.degPerCount;
+      while (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        const sx = Math.max(-400, Math.min(400, dx));
+        const sy = Math.max(-400, Math.min(400, dy));
+        window.__cs2e2e!.move(sx, sy, 0);
+        dx -= sx;
+        dy -= sy;
+      }
+    });
+    await page.mouse.click(box.x + 10, box.y + 10);
+    expect((await st())!.n).toBe(i + 1);
+  }
+  expect((await st())!.phase).toBe('track');
 });

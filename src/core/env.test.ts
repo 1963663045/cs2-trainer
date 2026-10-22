@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { detectEnv } from './env';
+import { detectEnv, detectOs, rawInputHint } from './env';
 
 vi.stubGlobal('document', { createElement: () => ({ requestPointerLock() {} }) });
 
@@ -14,5 +14,21 @@ describe('detectEnv', () => {
     const coarse = (q: string) => q.includes('coarse');
     expect(detectEnv(nav('iPhone Safari'), coarse).touchOnly).toBe(true);
     expect(detectEnv(nav('x'), fine).touchOnly).toBe(false);
+  });
+});
+
+describe('平台与提示文字', () => {
+  it('识别系统', () => {
+    expect(detectOs(nav('Mozilla/5.0 (X11; Linux x86_64) Chrome/140'))).toBe('linux');
+    expect(detectOs(nav('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140'))).toBe('windows');
+    expect(detectOs(nav('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'))).toBe('mac');
+    expect(detectOs(nav('Mozilla/5.0 (X11; CrOS x86_64 14541.0.0)'))).toBe('chromeos');
+    expect(detectOs(nav('Mozilla/5.0 (Linux; Android 14) Chrome/140'))).toBe('android');
+  });
+  it('Linux 提示说明这是平台限制而非故障', () => {
+    expect(rawInputHint('linux', 'os-accel')).toMatch(/Linux 版 Chrome 目前不支持/);
+    expect(rawInputHint('linux', 'os-accel')).toMatch(/Windows \/ macOS \/ ChromeOS/);
+    expect(rawInputHint('windows', 'os-accel')).toMatch(/提高指针精确度/);
+    expect(rawInputHint('other', 'unsupported')).toMatch(/不支持鼠标锁定/);
   });
 });

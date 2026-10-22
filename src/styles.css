@@ -47,3 +47,9 @@ code { background: #1f2937; padding: 0 4px; border-radius: 4px; }
   table { font-size: 12px; display: block; overflow-x: auto; }
   .card { padding: 10px; }
 }
+/* 状态徽标固定宽度：锁定 / 解锁时头部不跳动 */
+.badge { display: inline-block; min-width: 6.5em; text-align: center; white-space: nowrap; }
+/* 浮层提示：固定定位、不占文档流、不拦截鼠标 */
+.toast { position: fixed; right: 16px; bottom: 16px; max-width: min(460px, calc(100vw - 32px)); padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; z-index: 20; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.toast.info { background: rgba(30,58,95,.95); }
+.toast.warn { background: rgba(120,53,15,.95); }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../store/settings';
 import { usePointerInput } from './usePointerInput';
 import { candidates, initPsa, isDone, pickAB, psaResult, type PsaState } from '../core/sens/psa';
-import { MicroTask, type MicroTaskMetrics } from '../core/sens/microTask';
+import { DEFAULT_TASK, MicroTask, type MicroTaskMetrics } from '../core/sens/microTask';
 import { cmPer360, fmt, isPos, stretchFactor } from '../core/sens';
 import { savePsaResult } from '../core/replay/db';
 import { drawMicroTask } from '../render/psaCanvas';
@@ -15,7 +15,7 @@ type Phase = 'idle' | 'A' | 'B' | 'choose' | 'done';
 
 const fmtM = (m?: MicroTaskMetrics) =>
   m
-    ? `命中 ${m.hits}，失误 ${m.misses}，甩枪平均 ${m.flickMeanMs ? m.flickMeanMs.toFixed(0) + ' ms' : '—'}，跟枪平均误差 ${m.trackMeanErrDeg != null ? m.trackMeanErrDeg.toFixed(2) + '°' : '—'}`
+    ? `命中 ${m.hits}/${m.hits + m.timeouts}，超时 ${m.timeouts}，空枪 ${m.missClicks}，甩枪平均 ${m.flickMeanMs ? m.flickMeanMs.toFixed(0) + ' ms' : '—'}，跟枪平均误差 ${m.trackMeanErrDeg != null ? m.trackMeanErrDeg.toFixed(2) + '°' : '—'}`
     : '—';
 
 export default function PsaFinder() {
@@ -91,7 +91,7 @@ export default function PsaFinder() {
       const sx = stretchFactor(st.aspect, screen.width / screen.height);
       if ((ph === 'A' || ph === 'B') && task) {
         if (inp.locked) task.update(now);
-        drawMicroTask(ctx, canvas.width, canvas.height, task, ppd, `候选 ${ph}（第 ${(psaRef.current?.round ?? 0) + 1} 轮）`, sx);
+        drawMicroTask(ctx, canvas.width, canvas.height, task, ppd, `候选 ${ph}（第 ${(psaRef.current?.round ?? 0) + 1} 轮）`, sx, now);
         if (!inp.locked) {
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -178,7 +178,7 @@ export default function PsaFinder() {
     <div className="card">
       <h3>PSA 找灵敏度（盲测 A/B）</h3>
       <p className="muted">
-        从当前灵敏度 {settings.sens} 出发，区间为 ±{Math.round(spread * 100)}%。每轮分别用两组隐藏标签的灵敏度完成一次小任务（{6} 个甩枪目标 + 4 秒跟枪），选出手感更好的一组；区间每轮减半，共 {rounds} 轮。
+        从当前灵敏度 {settings.sens} 出发，区间为 ±{Math.round(spread * 100)}%。每轮分别用两组隐藏标签的灵敏度完成一次小任务（{DEFAULT_TASK.flickTargets} 个甩枪目标，每个最多 {DEFAULT_TASK.flickTimeoutMs / 1000} 秒，超时算失误；然后 {DEFAULT_TASK.trackMs / 1000} 秒跟枪），选出手感更好的一组；区间每轮减半，共 {rounds} 轮。
         浏览器帧率、显示延迟与游戏不同，结果仅作起点，请回到 CS2 中再确认。
       </p>
       {phase === 'idle' || phase === 'done' ? (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreSpray } from './index';
+import { MIN_SHOTS, scoreSpray } from './index';
 
 const pattern = Array.from({ length: 12 }, (_, i) => ({ shot: i + 1, x: i * 0.1, y: i * 0.5 }));
 const opts = { dpi: 800, sens: 1, yaw: 0.022, toleranceDeg: 1 };
@@ -24,6 +24,9 @@ describe('scoreSpray', () => {
     const view = pattern.map((p, i) => (i >= 6 && i <= 10 ? { x: 0, y: 0 } : { x: -p.x, y: -p.y }));
     const r = scoreSpray(pattern, view, { ...opts, segmentSize: 5 });
     expect(r.worstSegment).toMatchObject({ from: 7, to: 11 });
+    // 窗口不会包含第 1 发
+    const r2 = scoreSpray(pattern, pattern.map(() => ({ x: 0, y: 0 })), { ...opts, segmentSize: 5 });
+    expect(r2.worstSegment!.from).toBeGreaterThanOrEqual(2);
   });
   it('首 10 发只统计前 10 发', () => {
     const view = pattern.map((p, i) => (i < 10 ? { x: -p.x, y: -p.y } : { x: 5, y: 5 }));
@@ -31,4 +34,23 @@ describe('scoreSpray', () => {
     expect(r.first10).toBe(100);
     expect(r.total).toBeLessThan(100);
   });
+});
+
+describe('第 1 发不虚高', () => {
+  it('不压枪时第 1 发误差为 0 但不计入总分', () => {
+    const view = pattern.map(() => ({ x: 0, y: 0 }));
+    const r = scoreSpray(pattern, view, opts);
+    expect(r.shots[0].errDeg).toBe(0);
+    expect(r.shots[0].score).toBe(100);
+    expect(r.shots[0].counted).toBe(false);
+    // 第 2 发偏移 hypot(0.1,0.5)=0.51 → 49 分；第 3 发 hypot(0.2,1)>1 → 0；之后都 0
+    expect(r.first10).toBe(Math.round(100 * (1 - Math.hypot(0.1, 0.5)) / 9));
+    expect(r.total).toBe(Math.round(100 * (1 - Math.hypot(0.1, 0.5)) / 11));
+  });
+  it('只有 1 发时汇总为 0（没有可计分的发数）', () => {
+    const r = scoreSpray(pattern.slice(0, 1), [{ x: 0, y: 0 }], opts);
+    expect(r.total).toBe(0);
+    expect(r.meanErrDeg).toBe(0);
+  });
+  it('最少发数常量', () => expect(MIN_SHOTS).toBe(5));
 });

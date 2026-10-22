@@ -21,8 +21,8 @@ export function Notices() {
         <div className="banner warn" role="alert">当前浏览器不支持鼠标锁定（Pointer Lock），训练功能不可用，请使用最新版 Chrome / Edge。</div>
       )}
       {!env.touchOnly && env.pointerLock && !env.chromium && !hideBrowser && (
-        <div className="banner warn" role="status">
-          当前浏览器（如 Firefox / Safari）可能不支持原始鼠标输入（unadjustedMovement），手感会受系统指针加速影响。建议使用最新版 Chrome / Edge。
+        <div className="banner info" role="status">
+          当前浏览器可能不支持原始鼠标输入（unadjustedMovement）。锁定鼠标时本站会自动检测，并在右上角显示是否为原始输入；推荐 Windows / macOS 上的最新版 Chrome / Edge。
           <button
             type="button"
             className="link"

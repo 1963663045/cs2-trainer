@@ -117,7 +117,7 @@ export class PointerInput {
     if (hook?.fakeLock) {
       // 测试构建：不调用真实 Pointer Lock，由测试脚本注入移动
       this.fakeLocked = true;
-      this.mode = 'raw';
+      this.mode = hook.fakeMode === 'os' ? 'os' : 'raw';
       hook.active = this;
       this.handleLocked();
       return this.status;
@@ -250,8 +250,8 @@ export class PointerInput {
 }
 
 export const STATUS_LABEL: Record<RawStatus, string> = {
-  unlocked: '未锁定鼠标',
-  raw: '原始输入（已绕过系统加速）',
-  'os-accel': '非原始输入：受系统指针设置影响',
-  unsupported: '浏览器不支持鼠标锁定'
+  unlocked: '未锁定',
+  raw: '原始输入 ✓',
+  'os-accel': '非原始输入',
+  unsupported: '不支持锁定'
 };
