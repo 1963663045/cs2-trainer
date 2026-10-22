@@ -1,0 +1,212 @@
+{
+  "weapon": "weapon_ak47 (CS2)",
+  "generated": "2026-10-22 (UTC+8)",
+  "status": "PARAMS_ONLY — no legitimately sourced, verified per-bullet trajectory was obtainable; perBullet/compensation are intentionally empty. Fill them via the measurement procedure below.",
+  "gameVersionNote": {
+    "weaponsVdataSnapshot": "GameTracking-CS2 master; latest commit touching weapons.vdata = f68ba6aa24, 2026-10-08T22:39Z (2026-10-09 06:39 UTC+8), game build 2000930",
+    "blocksResolved": "weapons.vdata contains 3 AK blocks: 'weapon_ak47_prefab' (line ~2076, _base=rifle), item-def index \"7\" (line ~5991, _base=weapon_ak47_prefab) and 'weapon_ak47' (line ~13247, _base=weapon_ak47_prefab). All recoil/fire/recovery fields below are IDENTICAL in all three, so the value is unambiguous regardless of which entry the game resolves at runtime.",
+    "patchHistoryNotes": [
+      {
+        "date": "2023 (CS2 launch)",
+        "note": "Valve: CS2 sprays tuned to match CS:GO 128-tick size (slightly smaller than 64-tick).",
+        "source": "https://csgo.com/news/99432-overwhelming-success-valve-assess-release-and-future-of-counter-strike-2"
+      },
+      {
+        "date": "2026-04-21/22",
+        "note": "Valve patch note: 'Adjusted camera motion due to recoil to match CS:GO more closely. Bullet trajectories should continue to match CS2.' (camera/view punch only)",
+        "source": "https://www.talkesport.com/news/cs2/cs2-april-22-update/"
+      },
+      {
+        "note": "Third-party patch timelines report no AK-47 bullet-trajectory change since launch (only MP9 recoil changed, 2025-07). Not verified against Valve's own notes line by line.",
+        "source": "https://turbosmurfs.gg/article/cs2-spray-patterns"
+      }
+    ]
+  },
+  "units": {
+    "angles": "degrees of view angle; x = yaw (+ right), y = pitch (+ up = bullets climbing). Compensation = mouse direction opposite to the bullet offset.",
+    "time": "seconds",
+    "vdataRecoilFields": "m_flRecoilMagnitude / m_flRecoilAngle(Variance) are engine-internal impulse parameters, NOT degrees of final crosshair offset; they cannot be turned into a per-bullet trajectory without Valve's (unpublished) table generation + punch decay model."
+  },
+  "fire": {
+    "fullAuto": {
+      "value": true,
+      "field": "m_bIsFullAuto",
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "cycleTime_s": {
+      "value": 0.1,
+      "field": "m_flCycleTime",
+      "derived_rpm": 600,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "clipSize": {
+      "value": 30,
+      "field": "m_iMaxClip1",
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "shotTimes_s": {
+      "formula": "t_k = (k-1) * 0.1, k=1..30 (continuous; CS2 sub-tick fires at the real cycle time, do not quantize to 64/128 tick)",
+      "note": "timing model per sub-tick discussion; see https://www.reddit.com/r/GlobalOffensive/comments/16ithxo/"
+    }
+  },
+  "recoilParams": {
+    "m_nRecoilSeed": {
+      "value": 223,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoilAngle": {
+      "value": [
+        0.0,
+        0.0
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoilAngleVariance": {
+      "value": [
+        70.0,
+        70.0
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoilMagnitude": {
+      "value": [
+        30.0,
+        30.0
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoilMagnitudeVariance": {
+      "value": [
+        0.0,
+        0.0
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "note": "Pairs are [primary, alternate] firing mode."
+  },
+  "recovery": {
+    "m_flRecoveryTimeStand": {
+      "value": 0.368,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoveryTimeStandFinal": {
+      "value": 0.506,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoveryTimeCrouch": {
+      "value": 0.305257,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flRecoveryTimeCrouchFinal": {
+      "value": 0.419728,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_nRecoveryTransitionStartBullet": {
+      "value": 2,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_nRecoveryTransitionEndBullet": {
+      "value": 5,
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "note": "Recovery time of accumulated inaccuracy/recoil, interpolated between initial and final values across the transition bullets. Exact decay curve not published by Valve."
+  },
+  "accuracy": {
+    "m_flSpread": {
+      "value": [
+        0.0006,
+        0.0006
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flInaccuracyStand": {
+      "value": [
+        0.00641,
+        0.00641
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flInaccuracyCrouch": {
+      "value": [
+        0.00481,
+        0.00481
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flInaccuracyFire": {
+      "value": [
+        0.0078,
+        0.0078
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flInaccuracyMove": {
+      "value": [
+        0.17506,
+        0.17506
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "m_flMaxSpeed": {
+      "value": [
+        215.0,
+        215.0
+      ],
+      "source": "https://github.com/SteamTracking/GameTracking-CS2/blob/master/game/csgo/pak01_dir/scripts/weapons.vdata"
+    },
+    "note": "Random spread is ADDED on top of the deterministic pattern in game; a trainer should show it as a tolerance ring, not as part of the ideal path. Units are engine-internal (radians-like), conversion not officially documented."
+  },
+  "validationTargets": {
+    "source": "https://csstats.gg/spray-patterns (\"Updated: 22nd August 2023\", CS2 limited-test era)",
+    "recoilHeight_deg": 11.06,
+    "recoilWidth_deg": 7.14,
+    "totalRecoilArea": 78.93,
+    "vsCSGO": "height -5.89%, width -3.23%, area -8.93% vs CS:GO",
+    "caveat": "Aggregate envelope only (no per-bullet data published; per-bullet plots on that page are images). Measured 2023; use as sanity check that a measured 30-shot pattern spans ~11.06° vertically and ~7.14° horizontally."
+  },
+  "perBullet": {
+    "status": "EMPTY — not obtainable from an allowed source",
+    "schema": {
+      "shot": "1..30",
+      "t_s": "(shot-1)*0.1",
+      "x_deg": "cumulative yaw offset of bullet impact vs. aim point (+right)",
+      "y_deg": "cumulative pitch offset (+up)"
+    },
+    "data": []
+  },
+  "compensation": {
+    "status": "EMPTY — derive after perBullet is measured",
+    "rule": "comp_k = (-x_deg_k, -y_deg_k): the cumulative view-angle movement the player must apply by shot k. Mouse right = +x, mouse pulled down = -y in view terms.",
+    "data": []
+  },
+  "cmHelper": {
+    "formula": "cm = deg / (sens * 0.022) / DPI * 2.54",
+    "notes": [
+      "0.022 = CS2 default m_yaw/m_pitch (deg per mouse count at sensitivity 1), same as CS:GO; CS2 always uses raw input (m_rawinput removed).",
+      "Example: 11.06 deg vertical at sens 1.0 / 800 DPI -> 11.06/(0.022)/800*2.54 = 1.596 cm (arithmetic only)."
+    ],
+    "source": "https://community.skin.club/pro/tools/mouse-sensitivity-converter/csgo-to-cs2"
+  },
+  "measurementProcedure": [
+    "Offline local server only (Practice / 'map de_dust2' with bots off), never on official/community servers.",
+    "Console: sv_cheats 1; bot_kick; sv_infinite_ammo 1; weapon_accuracy_nospread 1 (removes random spread, leaves deterministic recoil); sv_showimpacts 1; sv_showimpacts_time 10; cl_showpos 1; host_timescale 0.1 (optional, for readable capture). All these convars exist in DumpSource2/convars.txt of the same snapshot.",
+    "Stand still, aim at a flat wall at a known distance, fire one full 30-round magazine WITHOUT touching the mouse (fire via keyboard bind so no hand input contaminates the result). Record with high-fps lossless capture.",
+    "Extract the 30 impact markers (sv_showimpacts boxes) from the screenshot/frames; convert screen px -> degrees with CS2 FOV model (fov 90 horizontal at 4:3, Hor+ ~106.26 deg at 16:9): deg = atan(px_offset / (0.5*screenWidth / tan(hfov/2))) in each axis.",
+    "Repeat >=5 magazines, average per bullet, verify std-dev small (pattern is deterministic once nospread=1), and check envelope against validationTargets (~11.06 deg high, ~7.14 deg wide).",
+    "Record the game build number with the dataset; re-measure after any patch that mentions recoil."
+  ],
+  "rejectedCandidates": [
+    {
+      "source": "CSDB.gg (https://csdb.gg/spray-trainer/ and https://csdb.gg/recoil-patterns/)",
+      "reason": "Obtained its 30-point AK array from the page's public JS bundle. Every step has length exactly 30.0 and direction within ±70° — i.e. it is a plain cumulative sum of the raw vdata impulse parameters (magnitude 30, angle variance 70) with no smoothing / view-punch decay / scaling. Result keeps climbing linearly for all 30 shots (height:width ≈ 8.2:1) vs csstats measured 11.06°:7.14° (≈1.55:1). Not a valid in-game trajectory; also no license. Not included."
+    },
+    {
+      "source": "xbitlabs CS2 Spray Trainer",
+      "reason": "Its own page states pattern data comes from an RCS (recoil-compensation) project — excluded by policy."
+    },
+    {
+      "source": "Assorted GitHub repos",
+      "reason": "Repos with per-bullet AK tables found earlier were macro/RCS-derived or based on reverse-engineered game binaries — excluded by policy."
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "id": "galil",
+  "name": "Galil AR",
+  "vdataClass": "weapon_galilar",
+  "isDemo": false,
+  "gameBuild": "GameTracking-CS2 commit f68ba6aa24（2026-10-09 06:39 UTC+8），游戏 build 2000930",
+  "cycleTime": 0.09,
+  "clipSize": 35,
+  "fullAuto": true,
+  "recovery": {
+    "RecoveryTimeStand": 0.3,
+    "RecoveryTimeStandFinal": 0.5,
+    "RecoveryTimeCrouch": 0.15,
+    "RecoveryTimeCrouchFinal": 0.47,
+    "RecoveryTransitionStartBullet": 2,
+    "RecoveryTransitionEndBullet": 5
+  },
+  "recoilParams": {
+    "m_nRecoilSeed": 51191,
+    "m_flRecoilAngle": [
+      0.0,
+      0.0
+    ],
+    "m_flRecoilAngleVariance": [
+      70.0,
+      70.0
+    ],
+    "m_flRecoilMagnitude": [
+      21.0,
+      21.0
+    ],
+    "m_flRecoilMagnitudeVariance": [
+      1.0,
+      1.0
+    ]
+  },
+  "accuracyParams": {
+    "m_flSpread": [
+      0.0006,
+      0.0006
+    ],
+    "m_flInaccuracyStand": [
+      0.00877,
+      0.00778
+    ],
+    "m_flInaccuracyCrouch": [
+      0.00658,
+      0.00484
+    ],
+    "m_flInaccuracyFire": [
+      0.007,
+      0.00585
+    ],
+    "m_flInaccuracyMove": [
+      0.12356,
+      0.10652
+    ],
+    "m_flMaxSpeed": [
+      215.0,
+      215.0
+    ]
+  },
+  "sources": {
+    "params": "https://github.com/SteamTracking/GameTracking-CS2/blob/f68ba6aa2473367589e7cb249fc38814c9b90ff0/game/csgo/pak01_dir/scripts/weapons.vdata",
+    "blocksChecked": "weapon_galilar_prefab@行1188; 13@行6603; weapon_galilar@行13859 —— 以上字段在 3 个条目中完全一致",
+    "validation": "https://csstats.gg/spray-patterns（2023-08-22）"
+  },
+  "validationTargets": {
+    "recoilHeightDeg": 7.31,
+    "recoilWidthDeg": 7.06
+  },
+  "perBullet": [],
+  "notes": [
+    "perBullet 为空（待实测）：没有合法来源的逐发弹道。",
+    "recoilParams / accuracyParams 为引擎内部原始参数，[主模式, 副模式]，不是角度，不能直接当作弹道或散布角使用。",
+    "单位约定：perBullet 用视角角度（度），x=+右，y=+上。"
+  ],
+  "measurementProcedure": [
+    "Offline local server only (Practice / 'map de_dust2' with bots off), never on official/community servers.",
+    "Console: sv_cheats 1; bot_kick; sv_infinite_ammo 1; weapon_accuracy_nospread 1 (removes random spread, leaves deterministic recoil); sv_showimpacts 1; sv_showimpacts_time 10; cl_showpos 1; host_timescale 0.1 (optional, for readable capture). All these convars exist in DumpSource2/convars.txt of the same snapshot.",
+    "Stand still, aim at a flat wall at a known distance, fire one full 30-round magazine WITHOUT touching the mouse (fire via keyboard bind so no hand input contaminates the result). Record with high-fps lossless capture.",
+    "Extract the 30 impact markers (sv_showimpacts boxes) from the screenshot/frames; convert screen px -> degrees with CS2 FOV model (fov 90 horizontal at 4:3, Hor+ ~106.26 deg at 16:9): deg = atan(px_offset / (0.5*screenWidth / tan(hfov/2))) in each axis.",
+    "Repeat >=5 magazines, average per bullet, verify std-dev small (pattern is deterministic once nospread=1), and check envelope against validationTargets (~11.06 deg high, ~7.14 deg wide).",
+    "Record the game build number with the dataset; re-measure after any patch that mentions recoil."
+  ]
+}

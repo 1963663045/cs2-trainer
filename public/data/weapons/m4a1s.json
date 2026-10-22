@@ -1,0 +1,86 @@
+{
+  "id": "m4a1s",
+  "name": "M4A1-S",
+  "vdataClass": "weapon_m4a1_silencer",
+  "isDemo": false,
+  "gameBuild": "GameTracking-CS2 commit f68ba6aa24（2026-10-09 06:39 UTC+8），游戏 build 2000930",
+  "cycleTime": 0.1,
+  "clipSize": 20,
+  "fullAuto": true,
+  "recovery": {
+    "RecoveryTimeStand": 0.338941,
+    "RecoveryTimeStandFinal": 0.466044,
+    "RecoveryTimeCrouch": 0.2421,
+    "RecoveryTimeCrouchFinal": 0.332888,
+    "RecoveryTransitionStartBullet": 2,
+    "RecoveryTransitionEndBullet": 5
+  },
+  "recoilParams": {
+    "m_nRecoilSeed": 38965,
+    "m_flRecoilAngle": [
+      0.0,
+      0.0
+    ],
+    "m_flRecoilAngleVariance": [
+      65.0,
+      65.0
+    ],
+    "m_flRecoilMagnitude": [
+      25.0,
+      21.0
+    ],
+    "m_flRecoilMagnitudeVariance": [
+      3.0,
+      0.0
+    ]
+  },
+  "accuracyParams": {
+    "m_flSpread": [
+      0.0006,
+      0.0005
+    ],
+    "m_flInaccuracyStand": [
+      0.0049,
+      0.0049
+    ],
+    "m_flInaccuracyCrouch": [
+      0.0041,
+      0.0041
+    ],
+    "m_flInaccuracyFire": [
+      0.012,
+      0.007
+    ],
+    "m_flInaccuracyMove": [
+      0.09288,
+      0.122
+    ],
+    "m_flMaxSpeed": [
+      225.0,
+      225.0
+    ]
+  },
+  "sources": {
+    "params": "https://github.com/SteamTracking/GameTracking-CS2/blob/f68ba6aa2473367589e7cb249fc38814c9b90ff0/game/csgo/pak01_dir/scripts/weapons.vdata",
+    "blocksChecked": "weapon_m4a1_silencer_prefab@行4899; 60@行10261; weapon_m4a1_silencer@行14154 —— 以上字段在 3 个条目中完全一致",
+    "validation": "https://csstats.gg/spray-patterns（2023-08-22）"
+  },
+  "validationTargets": {
+    "recoilHeightDeg": 5.93,
+    "recoilWidthDeg": 4.62
+  },
+  "perBullet": [],
+  "notes": [
+    "perBullet 为空（待实测）：没有合法来源的逐发弹道。",
+    "recoilParams / accuracyParams 为引擎内部原始参数，[主模式, 副模式]，不是角度，不能直接当作弹道或散布角使用。",
+    "单位约定：perBullet 用视角角度（度），x=+右，y=+上。"
+  ],
+  "measurementProcedure": [
+    "Offline local server only (Practice / 'map de_dust2' with bots off), never on official/community servers.",
+    "Console: sv_cheats 1; bot_kick; sv_infinite_ammo 1; weapon_accuracy_nospread 1 (removes random spread, leaves deterministic recoil); sv_showimpacts 1; sv_showimpacts_time 10; cl_showpos 1; host_timescale 0.1 (optional, for readable capture). All these convars exist in DumpSource2/convars.txt of the same snapshot.",
+    "Stand still, aim at a flat wall at a known distance, fire one full 30-round magazine WITHOUT touching the mouse (fire via keyboard bind so no hand input contaminates the result). Record with high-fps lossless capture.",
+    "Extract the 30 impact markers (sv_showimpacts boxes) from the screenshot/frames; convert screen px -> degrees with CS2 FOV model (fov 90 horizontal at 4:3, Hor+ ~106.26 deg at 16:9): deg = atan(px_offset / (0.5*screenWidth / tan(hfov/2))) in each axis.",
+    "Repeat >=5 magazines, average per bullet, verify std-dev small (pattern is deterministic once nospread=1), and check envelope against validationTargets (~11.06 deg high, ~7.14 deg wide).",
+    "Record the game build number with the dataset; re-measure after any patch that mentions recoil."
+  ]
+}

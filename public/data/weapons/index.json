@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ak47",
+    "file": "ak47.json",
+    "label": "AK-47（真实参数，逐发弹道待实测）",
+    "isDemo": false
+  },
+  {
+    "id": "m4a4",
+    "file": "m4a4.json",
+    "label": "M4A4（真实参数，逐发弹道待实测）",
+    "isDemo": false
+  },
+  {
+    "id": "m4a1s",
+    "file": "m4a1s.json",
+    "label": "M4A1-S（真实参数，逐发弹道待实测）",
+    "isDemo": false
+  },
+  {
+    "id": "galil",
+    "file": "galil.json",
+    "label": "Galil AR（真实参数，逐发弹道待实测）",
+    "isDemo": false
+  },
+  {
+    "id": "famas",
+    "file": "famas.json",
+    "label": "FAMAS（真实参数，逐发弹道待实测）",
+    "isDemo": false
+  },
+  {
+    "id": "demo",
+    "file": "demo-pattern.json",
+    "label": "示意弹道 DEMO（非游戏真实弹道）",
+    "isDemo": true
+  }
+]
